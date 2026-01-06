@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/menu_page.dart';
+import 'pages/app_selection_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -175,8 +176,10 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
+  int _appMode = 0; // 0 = selection, 1 = attendance, 2 = inspection
 
   static const List<String> _titles = [
+    'Select Application',
     'Home',
     'Menu',
     'Logout',
@@ -194,6 +197,26 @@ class _MainScaffoldState extends State<MainScaffold> {
     final state = context.findAncestorStateOfType<_MainScaffoldState>();
     state?.setState(() {
       state._selectedIndex = sublistIndex;
+      state._appMode = 2; // Switch to inspection mode
+    });
+  }
+
+  void _handleAppSelection(BuildContext context, String appType) {
+    setState(() {
+      if (appType == 'attendance') {
+        _appMode = 1; // Attendance mode
+        _selectedIndex = 1; // Home page
+      } else if (appType == 'inspection') {
+        _appMode = 2; // Inspection mode
+        _selectedIndex = 2; // Menu page
+      }
+    });
+  }
+
+  void _handleReturnToAppSelection() {
+    setState(() {
+      _appMode = 0;
+      _selectedIndex = 0;
     });
   }
 
@@ -216,6 +239,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 
   List<Widget> get _pages => [
+    AppSelectionPage(onNavigate: _handleAppSelection),
     HomePage(onLogout: _handleAutoLogout),
     MenuPage(onNavigate: _navigateToSublist),
     Center(child: Text('Logout')),
@@ -276,6 +300,9 @@ class _MainScaffoldState extends State<MainScaffold> {
           myAppState._isLoggedIn = false;
         });
       }
+    } else if (index == 3) {
+      // Back to app selection from attendance
+      _handleReturnToAppSelection();
     } else {
       setState(() {
         _selectedIndex = index;
@@ -290,6 +317,71 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    // For app selection mode, show minimal UI
+    if (_appMode == 0) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(_titles[0]),
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.cyan[300]!, Colors.green[300]!],
+              ),
+            ),
+          ),
+          actions: [
+            FutureBuilder<String?>(
+              future: _getUsername(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                }
+                final username = snapshot.data ?? 'User';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person),
+                      const SizedBox(width: 8),
+                      Text(username),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        body: _pages[_selectedIndex],
+        bottomNavigationBar: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'Logout'),
+          ],
+          currentIndex: 0,
+          onTap: (index) {
+            if (index == 0) {
+              _handleReturnToAppSelection(); // Home -> App Selection
+            } else if (index == 1) {
+              _onItemTapped(2); // Logout
+            }
+          },
+        ),
+      );
+    }
+
+    // For attendance and inspection modes
+    int displayIndex = _selectedIndex;
+    if (_appMode == 1 && _selectedIndex > 2) {
+      displayIndex = 1; // Clamp to home for attendance mode
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
@@ -300,16 +392,21 @@ class _MainScaffoldState extends State<MainScaffold> {
             ),
           ),
         ),
-        leading: (_selectedIndex > 2)
+        leading: (_appMode == 1 && _selectedIndex == 1)
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  setState(() {
-                    _selectedIndex = 1; // Go back to Menu
-                  });
-                },
+                onPressed: _handleReturnToAppSelection,
               )
-            : null,
+            : (_selectedIndex > 3)
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      setState(() {
+                        _selectedIndex = 2; // Go back to Menu
+                      });
+                    },
+                  )
+                : null,
         actions: [
           FutureBuilder<String?>(
             future: _getUsername(),
@@ -340,19 +437,43 @@ class _MainScaffoldState extends State<MainScaffold> {
         ],
       ),
       body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'Menu'),
-          BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'Logout'),
-        ],
-        currentIndex: _selectedIndex > 2 ? 1 : _selectedIndex,
-        onTap: (index) {
-          if (index < 3) {
-            _onItemTapped(index);
-          }
-        },
-      ),
+      bottomNavigationBar: _appMode == 1
+          ? BottomNavigationBar(
+              items: const <BottomNavigationBarItem>[
+                BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+                BottomNavigationBarItem(icon: Icon(Icons.arrow_back), label: 'Back'),
+                BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'Logout'),
+              ],
+              currentIndex: _selectedIndex >= 1 && _selectedIndex <= 2 ? _selectedIndex - 1 : 0,
+              onTap: (index) {
+                if (index == 0) {
+                  _handleReturnToAppSelection(); // Home -> App Selection
+                } else if (index == 1) {
+                  _handleReturnToAppSelection(); // Back
+                } else if (index == 2) {
+                  _onItemTapped(2); // Logout
+                }
+              },
+            )
+          : BottomNavigationBar(
+              items: const <BottomNavigationBarItem>[
+                BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+                BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'Menu'),
+                BottomNavigationBarItem(icon: Icon(Icons.arrow_back), label: 'Back'),
+              ],
+              currentIndex: _selectedIndex > 3 ? 1 : _selectedIndex == 2 ? 1 : 0,
+              onTap: (index) {
+                if (index == 0) {
+                  _handleReturnToAppSelection(); // Home -> App Selection
+                } else if (index == 1) {
+                  setState(() {
+                    _selectedIndex = 2; // Menu
+                  });
+                } else if (index == 2) {
+                  _handleReturnToAppSelection(); // Back
+                }
+              },
+            ),
     );
   }
 }
