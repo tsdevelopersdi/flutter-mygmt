@@ -12,6 +12,7 @@ import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/menu_page.dart';
 import 'pages/app_selection_page.dart';
+import 'pages/profile_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -261,10 +262,11 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   void _onItemTapped(int index) async {
     if (index == 2) {
-      // Clear local storage on logout
+      // Logout button pressed
+      print('\n🚪 Logout button tapped in MainScaffold');
+      
       try {
         final prefs = await SharedPreferences.getInstance();
-
         final refreshToken = prefs.getString('refreshToken');
 
         // 1. Call server api to destroy session
@@ -290,15 +292,26 @@ class _MainScaffoldState extends State<MainScaffold> {
         } else {
           print('⚠️ No refresh token found, skipping server logout');
         }
-        await prefs.clear();
-      } catch (e) {
-        print('Error clearing local storage: \\${e.toString()}');
-      }
-      final myAppState = context.findAncestorStateOfType<_MyAppState>();
-      if (myAppState != null) {
-        myAppState.setState(() {
-          myAppState._isLoggedIn = false;
-        });
+        
+        // 2. Clear all local authentication data
+        await prefs.remove('accessToken');
+        await prefs.remove('refreshToken');
+        await prefs.remove('email');
+        await prefs.remove('name');
+        await prefs.remove('username');
+        print('✅ All local authentication data cleared');
+        
+        // 3. Call the logout callback to trigger state change in MyApp
+        if (widget.onLogout != null) {
+          print('🔄 Calling onLogout callback from _onItemTapped');
+          widget.onLogout!();
+          print('✅ Logout successful, returning to login page');
+        } else {
+          print('❌ ERROR: onLogout callback is null!');
+        }
+      } catch (e, stackTrace) {
+        print('❌ ERROR in logout: $e');
+        print('   Stack trace: $stackTrace');
       }
     } else if (index == 3) {
       // Back to app selection from attendance
@@ -312,7 +325,7 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   Future<String?> _getUsername() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('username');
+    return prefs.getString('name');
   }
 
   @override
@@ -344,14 +357,22 @@ class _MainScaffoldState extends State<MainScaffold> {
                   );
                 }
                 final username = snapshot.data ?? 'User';
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person),
-                      const SizedBox(width: 8),
-                      Text(username),
-                    ],
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ProfilePage(onLogout: _handleAutoLogout)),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person),
+                        const SizedBox(width: 8),
+                        Text(username),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -422,14 +443,22 @@ class _MainScaffoldState extends State<MainScaffold> {
                 );
               }
               final username = snapshot.data ?? 'User';
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.person),
-                    const SizedBox(width: 8),
-                    Text(username),
-                  ],
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ProfilePage(onLogout: _handleAutoLogout)),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person),
+                      const SizedBox(width: 8),
+                      Text(username),
+                    ],
+                  ),
                 ),
               );
             },

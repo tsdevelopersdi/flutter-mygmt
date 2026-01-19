@@ -3,9 +3,9 @@
 class ApiConfig {
   // Base API URL - Change this to update all API endpoints
   // static const String baseUrl = 'http://10.28.24.173:45000';
-  // static const String baseUrl = 'http://mobileabsen.gmt.id:45000';
+  static const String baseUrl = 'http://mobileabsen.gmt.id:45000';
   // static const String baseUrl = 'http://10.10.28.121:45000';
-  static const String baseUrl = 'http://10.28.24.173:45000';
+  // static const String baseUrl = 'http://10.28.24.173:45000';
 
   // Auth endpoints
   static const String loginEndpoint = '$baseUrl/login';
@@ -14,4 +14,7 @@ class ApiConfig {
 
   // Attendance endpoint
   static const String attendanceEndpoint = '$baseUrl/attendance';
+  
+  // Change password endpoint
+  static const String changePasswordEndpoint = '$baseUrl/changepassword';
 }

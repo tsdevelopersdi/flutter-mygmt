@@ -114,8 +114,16 @@ class _LoginPageState extends State<LoginPage> {
         if (resp['user'] != null) {
           await prefs.setString('email', resp['user']['email'] ?? '');
           await prefs.setString('name', resp['user']['name'] ?? '');
+          await prefs.setString('role', resp['user']['role'] ?? '');
+          await prefs.setString('nik', resp['user']['nik'] ?? '');
+          await prefs.setString('status_site', resp['user']['status'] ?? '');
+          await prefs.setString('department', resp['user']['department'] ?? '');
           print('   ✅ User email saved: ${resp['user']['email']}');
           print('   ✅ User name saved: ${resp['user']['name']}');
+          print('   ✅ User role saved: ${resp['user']['role']}');
+          print('   ✅ User nik saved: ${resp['user']['nik']}');
+          print('   ✅ User status_site saved: ${resp['user']['status']}');
+          print('   ✅ User department saved: ${resp['user']['department']}');
         } else {
           print('   ⚠️  WARNING: No user object in response!');
         }
